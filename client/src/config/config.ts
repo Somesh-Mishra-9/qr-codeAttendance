@@ -5,17 +5,30 @@ interface Config {
     appName: string;
 }
 
+// Helper function to ensure API URL is correctly formatted
+const formatApiUrl = (url: string): string => {
+    // Remove trailing slash if present
+    const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+    
+    // If URL already ends with /api, don't add it again
+    if (baseUrl.endsWith('/api')) {
+        return baseUrl;
+    }
+    
+    return `${baseUrl}/api`;
+};
+
 const config: { [key: string]: Config } = {
     development: {
-        apiUrl: 'http://localhost:5000/api',
+        apiUrl: formatApiUrl('http://localhost:5000'),
         appName: 'QR Attendance (Dev)'
     },
     production: {
-        apiUrl: process.env.REACT_APP_API_URL || 'https://your-production-api.com/api',
+        apiUrl: formatApiUrl(process.env.REACT_APP_API_URL || 'https://your-production-api.com'),
         appName: 'QR Attendance'
     },
     test: {
-        apiUrl: 'http://localhost:5000/api',
+        apiUrl: formatApiUrl('http://localhost:5000'),
         appName: 'QR Attendance (Test)'
     }
 };
