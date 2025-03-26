@@ -14,11 +14,22 @@ const MobileScanner: React.FC = () => {
     const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
     const [availableCameras, setAvailableCameras] = useState<{deviceId: string, label: string}[]>([]);
     const [debug, setDebug] = useState<string | null>(null);
-    const [showDebug, setShowDebug] = useState(false);
+    const [showDebug, setShowDebug] = useState(true); // Show debug by default
+    const [domReady, setDomReady] = useState(false);
     
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const scannerDivRef = useRef<HTMLDivElement | null>(null);
     const initializationAttempts = useRef(0);
+
+    // This ensures DOM is ready
+    useEffect(() => {
+        setDebug("Component mounted, waiting for DOM to be ready...");
+        // Set DOM ready in the next tick
+        setTimeout(() => {
+            setDomReady(true);
+            setDebug("DOM should be ready now");
+        }, 100);
+    }, []);
 
     const initializeScanner = () => {
         if (!scannerDivRef.current) {
@@ -40,6 +51,13 @@ const MobileScanner: React.FC = () => {
                     // Ignore errors during cleanup
                 }
                 scannerRef.current = null;
+            }
+            
+            // Verify DOM element exists before initializing
+            const scannerElement = document.getElementById('scanner-view');
+            if (!scannerElement) {
+                setDebug("DOM element 'scanner-view' not found in the document");
+                return false;
             }
             
             // Create a new scanner instance
@@ -94,13 +112,26 @@ const MobileScanner: React.FC = () => {
         }
     };
 
+    // Only run initialization when DOM is confirmed ready
     useEffect(() => {
-        // Initialize scanner with a small delay to ensure DOM is ready
+        if (!domReady) return;
+
+        setDebug("DOM is ready, initializing scanner after delay...");
+        // Wait 2 seconds after DOM is ready to ensure HTML is fully rendered
         const initTimeout = setTimeout(async () => {
+            setDebug("Attempting to initialize scanner now...");
             if (initializeScanner()) {
                 await requestCameraPermission();
+            } else {
+                setDebug("First initialization attempt failed, retrying in 1 second...");
+                // If the first attempt fails, try again after 1 second
+                setTimeout(async () => {
+                    if (initializeScanner()) {
+                        await requestCameraPermission();
+                    }
+                }, 1000);
             }
-        }, 1500); // Increased delay to ensure DOM is fully ready
+        }, 2000);
 
         return () => {
             clearTimeout(initTimeout);
@@ -116,7 +147,7 @@ const MobileScanner: React.FC = () => {
                 }
             }
         };
-    }, []);
+    }, [domReady]);
 
     useEffect(() => {
         // Start or stop scanner based on state
@@ -334,6 +365,8 @@ const MobileScanner: React.FC = () => {
                     <p><strong>Cameras Found:</strong> {availableCameras.length}</p>
                     <p><strong>Scanner Initialized:</strong> {scannerRef.current ? 'Yes' : 'No'}</p>
                     <p><strong>Init Attempts:</strong> {initializationAttempts.current}</p>
+                    <p><strong>DOM Ready:</strong> {domReady ? 'Yes' : 'No'}</p>
+                    <p><strong>Scanner Element:</strong> {document.getElementById('scanner-view') ? 'Found' : 'Not Found'}</p>
                     {availableCameras.length > 0 && (
                         <div>
                             <p><strong>Available Cameras:</strong></p>
