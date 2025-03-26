@@ -11,191 +11,179 @@ const MobileScanner: React.FC = () => {
     const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'pending'>('pending');
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
     const [availableCameras, setAvailableCameras] = useState<{deviceId: string, label: string}[]>([]);
+    const [selectedCamera, setSelectedCamera] = useState<string>('');
     const [debug, setDebug] = useState<string | null>(null);
-    const [showDebug, setShowDebug] = useState(true); // Show debug by default
-    const [domReady, setDomReady] = useState(false);
+    const [showDebug, setShowDebug] = useState(true);
     
     const scannerRef = useRef<Html5Qrcode | null>(null);
-    const scannerDivRef = useRef<HTMLDivElement | null>(null);
-    const initializationAttempts = useRef(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    // This ensures DOM is ready
-    useEffect(() => {
-        setDebug("Component mounted, waiting for DOM to be ready...");
-        // Set DOM ready in the next tick
-        setTimeout(() => {
-            setDomReady(true);
-            setDebug("DOM should be ready now");
-        }, 100);
-    }, []);
-
-    const initializeScanner = () => {
-        if (!scannerDivRef.current) {
-            setDebug("Scanner div reference is null. DOM element might not be ready.");
-            return false;
-        }
-
-        try {
-            setDebug(`Initializing scanner (attempt ${initializationAttempts.current + 1})...`);
-            
-            // Try to clean up any previous instance
-            if (scannerRef.current) {
-                try {
-                    if (scannerRef.current.isScanning) {
-                        scannerRef.current.stop().catch(() => {});
-                    }
-                    scannerRef.current.clear();
-                } catch (e) {
-                    // Ignore errors during cleanup
-                }
-                scannerRef.current = null;
-            }
-            
-            // Verify DOM element exists before initializing
-            const scannerElement = document.getElementById('scanner-view');
-            if (!scannerElement) {
-                setDebug("DOM element 'scanner-view' not found in the document");
-                return false;
-            }
-            
-            // Create a new scanner instance
-            scannerRef.current = new Html5Qrcode('scanner-view');
-            setDebug("Scanner initialized successfully");
-            initializationAttempts.current++;
-            return true;
-        } catch (error) {
-            setCameraError(`Failed to initialize scanner: ${error instanceof Error ? error.message : String(error)}`);
-            setDebug(`Init error: ${error instanceof Error ? error.message : String(error)}`);
-            initializationAttempts.current++;
-            return false;
-        }
+    const addDebugMessage = (message: string) => {
+        console.log(message); // Log to console for additional debugging
+        setDebug(prev => `${prev ? prev + '\n' : ''}${message}`);
     };
 
-    const requestCameraPermission = async () => {
-        try {
-            setDebug("Requesting camera permissions...");
-            await navigator.mediaDevices.getUserMedia({ video: true });
-            setCameraPermission('granted');
-            setDebug("Camera permission granted. Enumerating devices...");
-            
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cameras = devices
-                .filter(device => device.kind === 'videoinput')
-                .map(device => ({
-                    deviceId: device.deviceId,
-                    label: device.label || `Camera ${device.deviceId.slice(0, 5)}`
-                }));
-            
-            setAvailableCameras(cameras);
-            
-            if (cameras.length > 0) {
-                // Default to back camera if available
-                const backCamera = cameras.find(camera => 
-                    camera.label.toLowerCase().includes('back') || 
-                    camera.label.toLowerCase().includes('rear'));
+    // Initialize camera permissions first
+    useEffect(() => {
+        addDebugMessage("Component mounted, requesting camera permission...");
+        
+        const requestPermission = async () => {
+            try {
+                // Request camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 
-                setActiveCameraId(backCamera?.deviceId || cameras[0].deviceId);
-                setDebug(`Found ${cameras.length} cameras. Selected: ${backCamera?.label || cameras[0].label}`);
-                return true;
-            } else {
-                setDebug('No cameras found on device');
-                setCameraError('No cameras found on your device');
-                return false;
-            }
-        } catch (error) {
-            setCameraPermission('denied');
-            setCameraError(`Camera access denied: ${error instanceof Error ? error.message : String(error)}`);
-            setDebug(`Camera permission error: ${error instanceof Error ? error.message : String(error)}`);
-            return false;
-        }
-    };
-
-    // Only run initialization when DOM is confirmed ready
-    useEffect(() => {
-        if (!domReady) return;
-
-        setDebug("DOM is ready, initializing scanner after delay...");
-        // Wait 2 seconds after DOM is ready to ensure HTML is fully rendered
-        const initTimeout = setTimeout(async () => {
-            setDebug("Attempting to initialize scanner now...");
-            if (initializeScanner()) {
-                await requestCameraPermission();
-            } else {
-                setDebug("First initialization attempt failed, retrying in 1 second...");
-                // If the first attempt fails, try again after 1 second
-                setTimeout(async () => {
-                    if (initializeScanner()) {
-                        await requestCameraPermission();
-                    }
-                }, 1000);
-            }
-        }, 2000);
-
-        return () => {
-            clearTimeout(initTimeout);
-            if (scannerRef.current) {
-                if (scannerRef.current.isScanning) {
-                    scannerRef.current.stop()
-                        .catch(error => console.error('Error stopping scanner:', error));
+                // If successful, get available cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices
+                    .filter(device => device.kind === 'videoinput')
+                    .map(device => ({
+                        deviceId: device.deviceId,
+                        label: device.label || `Camera ${device.deviceId.slice(0, 5)}`
+                    }));
+                
+                // Stop the stream we just opened
+                stream.getTracks().forEach(track => track.stop());
+                
+                setAvailableCameras(cameras);
+                setCameraPermission('granted');
+                
+                if (cameras.length > 0) {
+                    // Default to back camera if available
+                    const backCamera = cameras.find(camera => 
+                        camera.label.toLowerCase().includes('back') || 
+                        camera.label.toLowerCase().includes('rear'));
+                    
+                    const cameraId = backCamera?.deviceId || cameras[0].deviceId;
+                    setSelectedCamera(cameraId);
+                    addDebugMessage(`Found ${cameras.length} cameras. Selected: ${backCamera?.label || cameras[0].label}`);
+                } else {
+                    addDebugMessage('No cameras found on device');
+                    setCameraError('No cameras found on your device');
                 }
-                try {
-                    scannerRef.current.clear();
-                } catch (e) {
-                    // Ignore errors during cleanup
-                }
+            } catch (error) {
+                setCameraPermission('denied');
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                setCameraError(`Camera access denied: ${errorMsg}`);
+                addDebugMessage(`Camera permission error: ${errorMsg}`);
             }
         };
-    }, [domReady]);
+        
+        requestPermission();
+        
+        // Cleanup function
+        return () => {
+            cleanupScanner();
+        };
+    }, []);
 
-    useEffect(() => {
-        // Start or stop scanner based on state
-        if (scanning && activeCameraId && scannerRef.current) {
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            };
-
-            setDebug(`Starting scanner with camera ID: ${activeCameraId}`);
-            scannerRef.current.start(
-                { deviceId: { exact: activeCameraId } },
-                config,
-                handleQRCodeSuccess,
-                handleQRCodeError
-            ).catch(error => {
-                console.error('Scanner start error:', error);
-                setScanning(false);
-                setCameraError(`Failed to start camera: ${error.message}`);
-                setDebug(`Start scanner error: ${error.message}`);
-                
-                // Try to re-initialize the scanner if start fails
-                setTimeout(() => {
-                    if (initializationAttempts.current < 3) {
-                        setDebug("Attempting to reinitialize scanner...");
-                        if (initializeScanner()) {
-                            setDebug("Scanner reinitialized. Try scanning again.");
-                        }
-                    }
-                }, 1000);
-            });
-        } else if (!scanning && scannerRef.current && scannerRef.current.isScanning) {
-            setDebug("Stopping scanner");
-            scannerRef.current.stop()
-                .catch(error => console.error('Error stopping scanner:', error));
+    const cleanupScanner = () => {
+        if (scannerRef.current) {
+            try {
+                if (scannerRef.current.isScanning) {
+                    scannerRef.current.stop().catch(() => {});
+                }
+                // Clear HTML5QrCode (exists in v2.x)
+                if (typeof scannerRef.current.clear === 'function') {
+                    scannerRef.current.clear();
+                }
+            } catch (error) {
+                // Ignore cleanup errors
+                console.error('Error cleaning up scanner:', error);
+            }
+            scannerRef.current = null;
         }
-    }, [scanning, activeCameraId]);
+    };
+
+    const createScanner = () => {
+        try {
+            // Clean up any existing scanner
+            cleanupScanner();
+            
+            // Create container if it doesn't exist
+            if (!document.getElementById('scanner-view')) {
+                addDebugMessage("Scanner container not found, can't initialize scanner");
+                return false;
+            }
+            
+            // Create new scanner
+            scannerRef.current = new Html5Qrcode('scanner-view');
+            addDebugMessage("Scanner created successfully");
+            return true;
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            addDebugMessage(`Failed to create scanner: ${errorMsg}`);
+            setCameraError(`Scanner initialization failed: ${errorMsg}`);
+            return false;
+        }
+    };
+
+    const startScanning = () => {
+        if (cameraPermission !== 'granted' || !selectedCamera) {
+            addDebugMessage("Cannot start scanner - no camera permission or no camera selected");
+            return;
+        }
+        
+        // Create scanner if it doesn't exist
+        if (!scannerRef.current && !createScanner()) {
+            return;
+        }
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+        
+        setScanning(true);
+        setCameraError(null);
+        setSuccessMessage(null);
+        
+        addDebugMessage(`Starting scanner with camera ID: ${selectedCamera}`);
+        
+        scannerRef.current!.start(
+            { deviceId: { exact: selectedCamera } },
+            config,
+            handleQRCodeSuccess,
+            handleQRCodeError
+        ).catch(error => {
+            setScanning(false);
+            setCameraError(`Failed to start camera: ${error.message}`);
+            addDebugMessage(`Start scanner error: ${error.message}`);
+            
+            // Try creating the scanner again
+            setTimeout(() => {
+                addDebugMessage("Retrying scanner creation...");
+                createScanner();
+            }, 1000);
+        });
+    };
+
+    const stopScanning = () => {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            scannerRef.current.stop()
+                .then(() => {
+                    addDebugMessage("Scanner stopped");
+                    setScanning(false);
+                })
+                .catch(error => {
+                    addDebugMessage(`Error stopping scanner: ${error.message}`);
+                    setScanning(false);
+                });
+        } else {
+            setScanning(false);
+        }
+    };
 
     const handleQRCodeSuccess = async (decodedText: string) => {
         if (lastScanned === decodedText) return;
+        
         setLastScanned(decodedText);
-        setDebug(`Scanned code: ${decodedText}`);
+        addDebugMessage(`Scanned code: ${decodedText}`);
         
         try {
-            // Ensure API URL doesn't have double /api
             const url = `${apiUrl}/attendance/mark`;
-            setDebug(`Calling API: ${url}`);
+            addDebugMessage(`Calling API: ${url}`);
             
             const response = await fetch(url, {
                 method: 'POST',
@@ -212,7 +200,7 @@ const MobileScanner: React.FC = () => {
             const result = await response.json();
             
             if (response.ok) {
-                setScanning(false);
+                stopScanning();
                 setSuccessMessage(`Attendance marked successfully for ${result.attendee.name}!`);
                 
                 // Reset after success
@@ -222,7 +210,7 @@ const MobileScanner: React.FC = () => {
                 }, 3000);
             } else {
                 setCameraError(result.message || 'Failed to mark attendance');
-                setDebug(`API error: ${JSON.stringify(result)}`);
+                addDebugMessage(`API error: ${JSON.stringify(result)}`);
                 
                 // Clear error after delay
                 setTimeout(() => {
@@ -231,9 +219,10 @@ const MobileScanner: React.FC = () => {
                 }, 3000);
             }
         } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
             console.error('Error marking attendance:', error);
-            setCameraError(`Error connecting to server: ${error instanceof Error ? error.message : String(error)}`);
-            setDebug(`Fetch error: ${error instanceof Error ? error.message : String(error)}`);
+            setCameraError(`Error connecting to server: ${errorMsg}`);
+            addDebugMessage(`Fetch error: ${errorMsg}`);
             
             // Clear error after delay
             setTimeout(() => {
@@ -248,38 +237,17 @@ const MobileScanner: React.FC = () => {
         console.debug('QR scan error:', error);
     };
 
-    const startScanning = () => {
-        // If we don't have a scanner instance, try to initialize it first
-        if (!scannerRef.current && initializationAttempts.current < 3) {
-            if (initializeScanner()) {
-                setDebug("Scanner initialized on demand before starting");
-            } else {
-                setDebug("Failed to initialize scanner on demand");
-                return;
-            }
-        }
-        
-        setScanning(true);
-        setCameraError(null);
-        setSuccessMessage(null);
-    };
-
-    const stopScanning = () => {
-        setScanning(false);
-    };
-
     const switchCamera = () => {
-        if (scanning && scannerRef.current) {
+        if (availableCameras.length <= 1) return;
+        
+        if (scanning) {
             stopScanning();
         }
-        
-        // Find the next camera in the list
-        if (availableCameras.length > 1 && activeCameraId) {
-            const currentIndex = availableCameras.findIndex(c => c.deviceId === activeCameraId);
-            const nextIndex = (currentIndex + 1) % availableCameras.length;
-            setActiveCameraId(availableCameras[nextIndex].deviceId);
-            setDebug(`Switched to camera: ${availableCameras[nextIndex].label}`);
-        }
+
+        const currentIndex = availableCameras.findIndex(c => c.deviceId === selectedCamera);
+        const nextIndex = (currentIndex + 1) % availableCameras.length;
+        setSelectedCamera(availableCameras[nextIndex].deviceId);
+        addDebugMessage(`Switched to camera: ${availableCameras[nextIndex].label}`);
     };
 
     const toggleDebug = () => {
@@ -287,21 +255,32 @@ const MobileScanner: React.FC = () => {
     };
 
     const reinitializeCamera = () => {
-        setDebug("Manual reinitialize requested");
+        addDebugMessage("Manual reinitialize requested");
         
-        // Stop scanning if active
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch(() => {});
+        // Stop scanning
+        if (scanning) {
+            stopScanning();
         }
         
-        // Reset state
-        setScanning(false);
-        setCameraError(null);
+        // Clean up scanner
+        cleanupScanner();
         
-        // Reinitialize scanner and request permissions again
-        if (initializeScanner()) {
-            requestCameraPermission();
-        }
+        // Request permission again
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                // Stop the stream
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Create scanner
+                if (createScanner()) {
+                    addDebugMessage("Scanner reinitialized successfully");
+                }
+            })
+            .catch(error => {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                addDebugMessage(`Failed to reinitialize: ${errorMsg}`);
+                setCameraError(`Camera access failed: ${errorMsg}`);
+            });
     };
 
     return (
@@ -359,32 +338,39 @@ const MobileScanner: React.FC = () => {
                     borderRadius: '4px',
                     backgroundColor: '#f9f9f9',
                     fontSize: '14px',
-                    whiteSpace: 'pre-wrap'
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '200px',
+                    overflowY: 'auto'
                 }}>
                     <p><strong>Status:</strong> {cameraPermission}</p>
                     <p><strong>Cameras Found:</strong> {availableCameras.length}</p>
-                    <p><strong>Scanner Initialized:</strong> {scannerRef.current ? 'Yes' : 'No'}</p>
-                    <p><strong>Init Attempts:</strong> {initializationAttempts.current}</p>
-                    <p><strong>DOM Ready:</strong> {domReady ? 'Yes' : 'No'}</p>
-                    <p><strong>Scanner Element:</strong> {document.getElementById('scanner-view') ? 'Found' : 'Not Found'}</p>
+                    <p><strong>Scanner Created:</strong> {scannerRef.current ? 'Yes' : 'No'}</p>
+                    <p><strong>Container Element:</strong> {document.getElementById('scanner-view') ? 'Found' : 'Not Found'}</p>
+                    <p><strong>Is Scanning:</strong> {scannerRef.current?.isScanning ? 'Yes' : 'No'}</p>
                     {availableCameras.length > 0 && (
                         <div>
                             <p><strong>Available Cameras:</strong></p>
                             <ul>
                                 {availableCameras.map((camera, i) => (
-                                    <li key={i}>{camera.label} {activeCameraId === camera.deviceId ? '(selected)' : ''}</li>
+                                    <li key={i}>{camera.label} {selectedCamera === camera.deviceId ? '(selected)' : ''}</li>
                                 ))}
                             </ul>
                         </div>
                     )}
                     <p><strong>Debug Messages:</strong></p>
-                    <p>{debug || 'No messages'}</p>
+                    <pre style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        margin: '5px 0'
+                    }}>
+                        {debug || 'No messages'}
+                    </pre>
                     {cameraError && <p><strong>Error:</strong> {cameraError}</p>}
                 </div>
             )}
             
             {cameraPermission === 'denied' && (
-                <div className="camera-permission-denied" style={{ 
+                <div style={{ 
                     margin: '15px 0',
                     padding: '15px',
                     backgroundColor: '#fff2f0',
@@ -393,6 +379,20 @@ const MobileScanner: React.FC = () => {
                 }}>
                     <p>Camera access is required to scan QR codes.</p>
                     <p>Please enable camera access in your browser settings and reload this page.</p>
+                    <button 
+                        onClick={reinitializeCamera}
+                        style={{
+                            marginTop: '10px',
+                            padding: '8px 16px',
+                            backgroundColor: '#1890ff',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Request Camera Permission Again
+                    </button>
                 </div>
             )}
             
@@ -400,14 +400,15 @@ const MobileScanner: React.FC = () => {
                 <div style={{ margin: '20px 0', textAlign: 'center' }}>
                     <p>Waiting for camera permission...</p>
                     <p>If prompted, please allow camera access</p>
+                    <div style={{ marginTop: '15px', fontSize: '40px' }}>📷</div>
                 </div>
             )}
             
             {cameraPermission === 'granted' && (
                 <>
-                    <div className="scanner-controls" style={{ marginTop: '15px' }}>
+                    <div style={{ marginTop: '15px' }}>
                         {!scanning ? (
-                            <button onClick={startScanning} className="scan-button" style={{
+                            <button onClick={startScanning} style={{
                                 padding: '10px 20px',
                                 backgroundColor: '#52c41a',
                                 color: 'white',
@@ -420,7 +421,7 @@ const MobileScanner: React.FC = () => {
                                 Start Scanning
                             </button>
                         ) : (
-                            <button onClick={stopScanning} className="scan-button stop" style={{
+                            <button onClick={stopScanning} style={{
                                 padding: '10px 20px',
                                 backgroundColor: '#ff4d4f',
                                 color: 'white',
@@ -435,7 +436,7 @@ const MobileScanner: React.FC = () => {
                         )}
                         
                         {availableCameras.length > 1 && (
-                            <button onClick={switchCamera} className="switch-camera-button" style={{
+                            <button onClick={switchCamera} style={{
                                 marginTop: '10px',
                                 padding: '8px 16px',
                                 backgroundColor: '#1890ff',
@@ -451,7 +452,9 @@ const MobileScanner: React.FC = () => {
                         )}
                     </div>
                     
-                    <div id="scanner-view" ref={scannerDivRef} className="scanner-view" 
+                    <div 
+                        id="scanner-view" 
+                        ref={containerRef}
                         style={{ 
                             width: '100%', 
                             height: '300px', 
@@ -462,11 +465,11 @@ const MobileScanner: React.FC = () => {
                             marginBottom: '15px',
                             marginTop: '15px',
                             position: 'relative'
-                        }}>
-                    </div>
+                        }}
+                    ></div>
                     
                     {cameraError && (
-                        <div className="error-message" style={{
+                        <div style={{
                             padding: '10px',
                             backgroundColor: '#fff2f0',
                             border: '1px solid #ffccc7',
@@ -479,7 +482,7 @@ const MobileScanner: React.FC = () => {
                     )}
                     
                     {successMessage && (
-                        <div className="success-message" style={{
+                        <div style={{
                             padding: '10px',
                             backgroundColor: '#f6ffed',
                             border: '1px solid #b7eb8f',
@@ -491,7 +494,7 @@ const MobileScanner: React.FC = () => {
                         </div>
                     )}
                     
-                    <p className="scanner-help-text" style={{ textAlign: 'center', margin: '15px 0' }}>
+                    <p style={{ textAlign: 'center', margin: '15px 0' }}>
                         {scanning 
                             ? `Position the QR code in the center of the camera view to mark ${type === 'in' ? 'arrival' : 'departure'}`
                             : 'Press Start Scanning to begin'}
@@ -499,7 +502,7 @@ const MobileScanner: React.FC = () => {
                 </>
             )}
             
-            <button onClick={() => navigate('/dashboard')} className="back-button" style={{
+            <button onClick={() => navigate('/dashboard')} style={{
                 marginTop: '20px',
                 padding: '10px 20px',
                 backgroundColor: '#1890ff',
