@@ -291,3 +291,126 @@ export const createAttendee = async (req, res) => {
         res.status(500).json({ message: 'Error creating attendee: ' + error.message });
     }
 };
+
+// Add new functions for student management
+export const updateAttendee = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fullName, universityRegNo, branch, email, mobileNo, qrcodeNumber } = req.body;
+
+        // Validate required fields
+        if (!fullName || !universityRegNo || !branch || !qrcodeNumber) {
+            return res.status(400).json({ 
+                message: 'Missing required fields: name, registration number, branch, and QR code are required'
+            });
+        }
+
+        // Check if another attendee already has this registration number or QR code
+        const existingAttendee = await Attendee.findOne({
+            _id: { $ne: id },
+            $or: [
+                { qrcodeNumber },
+                { universityRegNo }
+            ]
+        });
+
+        if (existingAttendee) {
+            return res.status(409).json({ 
+                message: existingAttendee.qrcodeNumber === qrcodeNumber 
+                    ? 'Another attendee with this QR code already exists' 
+                    : 'Another attendee with this registration number already exists'
+            });
+        }
+
+        // Update the attendee
+        const updatedAttendee = await Attendee.findByIdAndUpdate(
+            id, 
+            {
+                fullName,
+                universityRegNo,
+                branch,
+                email,
+                mobileNo,
+                qrcodeNumber
+            },
+            { new: true }
+        );
+
+        if (!updatedAttendee) {
+            return res.status(404).json({ message: 'Attendee not found' });
+        }
+
+        res.json({ 
+            message: 'Attendee updated successfully',
+            attendee: updatedAttendee
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating attendee: ' + error.message });
+    }
+};
+
+export const deleteAttendee = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Delete the attendee
+        const deletedAttendee = await Attendee.findByIdAndDelete(id);
+
+        if (!deletedAttendee) {
+            return res.status(404).json({ message: 'Attendee not found' });
+        }
+
+        // Also delete all attendance records for this attendee
+        await Attendance.deleteMany({ attendeeId: id });
+
+        res.json({ 
+            message: 'Attendee and related attendance records deleted successfully',
+            attendee: deletedAttendee
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting attendee: ' + error.message });
+    }
+};
+
+export const getAttendeeDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const attendee = await Attendee.findById(id);
+        
+        if (!attendee) {
+            return res.status(404).json({ message: 'Attendee not found' });
+        }
+        
+        // Get attendance records for this attendee
+        const attendanceRecords = await Attendance.find({ attendeeId: id })
+            .sort({ date: -1 })
+            .limit(50);
+            
+        res.json({
+            attendee,
+            attendanceRecords
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching attendee details: ' + error.message });
+    }
+};
+
+export const deleteAttendanceRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedRecord = await Attendance.findByIdAndDelete(id);
+
+        if (!deletedRecord) {
+            return res.status(404).json({ message: 'Attendance record not found' });
+        }
+
+        res.json({ 
+            message: 'Attendance record deleted successfully',
+            record: deletedRecord
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting attendance record: ' + error.message });
+    }
+};

@@ -15,9 +15,11 @@ const MobileScanner: React.FC = () => {
     const [selectedCamera, setSelectedCamera] = useState<string>('');
     const [debug, setDebug] = useState<string | null>(null);
     const [showDebug, setShowDebug] = useState(true);
+    const [processingQr, setProcessingQr] = useState(false);
     
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const addDebugMessage = (message: string) => {
         console.log(message); // Log to console for additional debugging
@@ -74,6 +76,12 @@ const MobileScanner: React.FC = () => {
         // Cleanup function
         return () => {
             cleanupScanner();
+            
+            // Clear any pending timeouts
+            if (scanTimeoutRef.current) {
+                clearTimeout(scanTimeoutRef.current);
+                scanTimeoutRef.current = null;
+            }
         };
     }, []);
 
@@ -138,6 +146,7 @@ const MobileScanner: React.FC = () => {
         setScanning(true);
         setCameraError(null);
         setSuccessMessage(null);
+        setLastScanned(null); // Reset last scanned value when starting scan
         
         addDebugMessage(`Starting scanner with camera ID: ${selectedCamera}`);
         
@@ -176,12 +185,23 @@ const MobileScanner: React.FC = () => {
     };
 
     const handleQRCodeSuccess = async (decodedText: string) => {
-        if (lastScanned === decodedText) return;
+        // Return immediately if we're already processing a QR code
+        // or if this is a duplicate of what we just scanned
+        if (processingQr || lastScanned === decodedText) {
+            return;
+        }
         
+        // Lock to prevent duplicate submissions
+        setProcessingQr(true);
         setLastScanned(decodedText);
         addDebugMessage(`Scanned code: ${decodedText}`);
         
         try {
+            // Stop scanning immediately to prevent duplicates
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                await scannerRef.current.pause();
+            }
+            
             const url = `${apiUrl}/attendance/mark`;
             addDebugMessage(`Calling API: ${url}`);
             
@@ -204,18 +224,24 @@ const MobileScanner: React.FC = () => {
                 setSuccessMessage(`Attendance marked successfully for ${result.attendee.name}!`);
                 
                 // Reset after success
-                setTimeout(() => {
+                scanTimeoutRef.current = setTimeout(() => {
                     setSuccessMessage(null);
                     setLastScanned(null);
+                    setProcessingQr(false);
                 }, 3000);
             } else {
                 setCameraError(result.message || 'Failed to mark attendance');
                 addDebugMessage(`API error: ${JSON.stringify(result)}`);
                 
                 // Clear error after delay
-                setTimeout(() => {
+                scanTimeoutRef.current = setTimeout(() => {
                     setCameraError(null);
                     setLastScanned(null);
+                    setProcessingQr(false);
+                    // Resume scanning if needed
+                    if (scannerRef.current && scanning) {
+                        scannerRef.current.resume();
+                    }
                 }, 3000);
             }
         } catch (error) {
@@ -225,9 +251,14 @@ const MobileScanner: React.FC = () => {
             addDebugMessage(`Fetch error: ${errorMsg}`);
             
             // Clear error after delay
-            setTimeout(() => {
+            scanTimeoutRef.current = setTimeout(() => {
                 setCameraError(null);
                 setLastScanned(null);
+                setProcessingQr(false);
+                // Resume scanning if needed
+                if (scannerRef.current && scanning) {
+                    scannerRef.current.resume();
+                }
             }, 3000);
         }
     };
@@ -265,6 +296,9 @@ const MobileScanner: React.FC = () => {
         // Clean up scanner
         cleanupScanner();
         
+        // Reset lock
+        setProcessingQr(false);
+        
         // Request permission again
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
@@ -284,36 +318,64 @@ const MobileScanner: React.FC = () => {
     };
 
     return (
-        <div className="mobile-scanner-container">
-            <h2>Mobile QR Scanner</h2>
+        <div className="mobile-scanner-container" style={{ 
+            maxWidth: '100%', 
+            padding: '10px',
+            boxSizing: 'border-box'
+        }}>
+            <h2 style={{ fontSize: 'calc(1.2rem + 1vw)', textAlign: 'center' }}>Mobile QR Scanner</h2>
             
-            <div className="scanner-type-selector">
-                <label>
+            <div className="scanner-type-selector" style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                marginBottom: '10px',
+                flexWrap: 'wrap',
+                gap: '10px'
+            }}>
+                <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    fontSize: 'calc(0.9rem + 0.5vw)'
+                }}>
                     <input
                         type="radio"
                         value="in"
                         checked={type === 'in'}
                         onChange={() => setType('in')}
+                        style={{ marginRight: '5px' }}
                     /> Check In
                 </label>
-                <label>
+                <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    fontSize: 'calc(0.9rem + 0.5vw)',
+                    marginLeft: '15px'
+                }}>
                     <input
                         type="radio"
                         value="out"
                         checked={type === 'out'}
                         onChange={() => setType('out')}
+                        style={{ marginRight: '5px' }}
                     /> Check Out
                 </label>
             </div>
             
-            <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', gap: '10px' }}>
+            <div style={{ 
+                marginTop: '10px', 
+                marginBottom: '10px', 
+                display: 'flex', 
+                gap: '10px',
+                flexWrap: 'wrap'
+            }}>
                 <button onClick={toggleDebug} 
                     style={{ 
                         padding: '5px 10px', 
                         background: '#f0f0f0', 
                         border: '1px solid #ccc',
                         borderRadius: '4px',
-                        flex: 1
+                        flex: 1,
+                        minWidth: '120px'
                     }}>
                     {showDebug ? 'Hide Diagnostics' : 'Show Diagnostics'}
                 </button>
@@ -324,7 +386,8 @@ const MobileScanner: React.FC = () => {
                         background: '#e6f7ff', 
                         border: '1px solid #91d5ff',
                         borderRadius: '4px',
-                        flex: 1
+                        flex: 1,
+                        minWidth: '120px'
                     }}>
                     Retry Camera
                 </button>
@@ -340,13 +403,15 @@ const MobileScanner: React.FC = () => {
                     fontSize: '14px',
                     whiteSpace: 'pre-wrap',
                     maxHeight: '200px',
-                    overflowY: 'auto'
+                    overflowY: 'auto',
+                    wordBreak: 'break-word'
                 }}>
                     <p><strong>Status:</strong> {cameraPermission}</p>
                     <p><strong>Cameras Found:</strong> {availableCameras.length}</p>
                     <p><strong>Scanner Created:</strong> {scannerRef.current ? 'Yes' : 'No'}</p>
                     <p><strong>Container Element:</strong> {document.getElementById('scanner-view') ? 'Found' : 'Not Found'}</p>
                     <p><strong>Is Scanning:</strong> {scannerRef.current?.isScanning ? 'Yes' : 'No'}</p>
+                    <p><strong>Processing QR:</strong> {processingQr ? 'Yes' : 'No'}</p>
                     {availableCameras.length > 0 && (
                         <div>
                             <p><strong>Available Cameras:</strong></p>
@@ -361,7 +426,8 @@ const MobileScanner: React.FC = () => {
                     <pre style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        margin: '5px 0'
+                        margin: '5px 0',
+                        fontSize: '12px'
                     }}>
                         {debug || 'No messages'}
                     </pre>
@@ -375,7 +441,8 @@ const MobileScanner: React.FC = () => {
                     padding: '15px',
                     backgroundColor: '#fff2f0',
                     border: '1px solid #ffccc7',
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    fontSize: 'calc(0.8rem + 0.5vw)'
                 }}>
                     <p>Camera access is required to scan QR codes.</p>
                     <p>Please enable camera access in your browser settings and reload this page.</p>
@@ -388,7 +455,8 @@ const MobileScanner: React.FC = () => {
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            width: '100%'
                         }}
                     >
                         Request Camera Permission Again
@@ -398,8 +466,8 @@ const MobileScanner: React.FC = () => {
             
             {cameraPermission === 'pending' && (
                 <div style={{ margin: '20px 0', textAlign: 'center' }}>
-                    <p>Waiting for camera permission...</p>
-                    <p>If prompted, please allow camera access</p>
+                    <p style={{ fontSize: 'calc(0.9rem + 0.5vw)' }}>Waiting for camera permission...</p>
+                    <p style={{ fontSize: 'calc(0.8rem + 0.5vw)' }}>If prompted, please allow camera access</p>
                     <div style={{ marginTop: '15px', fontSize: '40px' }}>📷</div>
                 </div>
             )}
@@ -408,29 +476,36 @@ const MobileScanner: React.FC = () => {
                 <>
                     <div style={{ marginTop: '15px' }}>
                         {!scanning ? (
-                            <button onClick={startScanning} style={{
-                                padding: '10px 20px',
-                                backgroundColor: '#52c41a',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '16px',
-                                cursor: 'pointer',
-                                width: '100%'
-                            }}>
+                            <button 
+                                onClick={startScanning} 
+                                disabled={processingQr}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: processingQr ? '#d9d9d9' : '#52c41a',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontSize: 'calc(0.9rem + 0.5vw)',
+                                    cursor: processingQr ? 'not-allowed' : 'pointer',
+                                    width: '100%'
+                                }}
+                            >
                                 Start Scanning
                             </button>
                         ) : (
-                            <button onClick={stopScanning} style={{
-                                padding: '10px 20px',
-                                backgroundColor: '#ff4d4f',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '16px',
-                                cursor: 'pointer',
-                                width: '100%'
-                            }}>
+                            <button 
+                                onClick={stopScanning}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: '#ff4d4f',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    fontSize: 'calc(0.9rem + 0.5vw)',
+                                    cursor: 'pointer',
+                                    width: '100%'
+                                }}
+                            >
                                 Stop Scanning
                             </button>
                         )}
@@ -443,7 +518,7 @@ const MobileScanner: React.FC = () => {
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                fontSize: '14px',
+                                fontSize: 'calc(0.8rem + 0.4vw)',
                                 cursor: 'pointer',
                                 width: '100%'
                             }}>
@@ -458,6 +533,7 @@ const MobileScanner: React.FC = () => {
                         style={{ 
                             width: '100%', 
                             height: '300px', 
+                            maxHeight: '50vh',
                             border: '1px solid #ddd',
                             borderRadius: '8px',
                             overflow: 'hidden',
@@ -475,7 +551,8 @@ const MobileScanner: React.FC = () => {
                             border: '1px solid #ffccc7',
                             borderRadius: '4px',
                             marginBottom: '15px',
-                            color: '#cf1322'
+                            color: '#cf1322',
+                            fontSize: 'calc(0.8rem + 0.4vw)'
                         }}>
                             {cameraError}
                         </div>
@@ -488,13 +565,19 @@ const MobileScanner: React.FC = () => {
                             border: '1px solid #b7eb8f',
                             borderRadius: '4px',
                             marginBottom: '15px',
-                            color: '#52c41a'
+                            color: '#52c41a',
+                            fontSize: 'calc(0.8rem + 0.4vw)',
+                            textAlign: 'center'
                         }}>
                             {successMessage}
                         </div>
                     )}
                     
-                    <p style={{ textAlign: 'center', margin: '15px 0' }}>
+                    <p style={{ 
+                        textAlign: 'center', 
+                        margin: '15px 0',
+                        fontSize: 'calc(0.8rem + 0.4vw)'
+                    }}>
                         {scanning 
                             ? `Position the QR code in the center of the camera view to mark ${type === 'in' ? 'arrival' : 'departure'}`
                             : 'Press Start Scanning to begin'}
@@ -509,7 +592,7 @@ const MobileScanner: React.FC = () => {
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                fontSize: '16px',
+                fontSize: 'calc(0.9rem + 0.5vw)',
                 cursor: 'pointer',
                 width: '100%'
             }}>

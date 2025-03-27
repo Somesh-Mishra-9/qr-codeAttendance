@@ -13,6 +13,7 @@ import ScannerSelector from './components/Scanner/ScannerSelector';
 import Navigation from './components/common/Navigation';
 import NotFound from './components/common/NotFound';
 import AddUser from './components/Admin/AddUser';
+import StudentManagement from './components/Admin/StudentManagement';
 
 const App: React.FC = () => {
     return (
@@ -66,6 +67,11 @@ const App: React.FC = () => {
                             <Route path="/add-user" element={
                                 <PrivateRoute>
                                     <AddUser />
+                                </PrivateRoute>
+                            } />
+                            <Route path="/student-management" element={
+                                <PrivateRoute>
+                                    <StudentManagement />
                                 </PrivateRoute>
                             } />
                             {/* Default redirect */}

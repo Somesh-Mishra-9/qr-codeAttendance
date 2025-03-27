@@ -1,6 +1,17 @@
 import express from 'express';
 import multer from 'multer';
-import { markAttendance, getStats, getHistory, importCSV, getAttendees, createAttendee } from '../controllers/attendance.controller.js';
+import { 
+    markAttendance, 
+    getStats, 
+    getHistory, 
+    importCSV, 
+    getAttendees, 
+    createAttendee,
+    updateAttendee,
+    deleteAttendee,
+    getAttendeeDetails,
+    deleteAttendanceRecord
+} from '../controllers/attendance.controller.js';
 import { auth, adminAuth } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
@@ -9,6 +20,10 @@ const upload = multer({ dest: 'uploads/' });
 // Protected routes
 router.get('/attendees', auth, getAttendees);
 router.post('/attendee', adminAuth, createAttendee);
+router.put('/attendee/:id', adminAuth, updateAttendee);
+router.delete('/attendee/:id', adminAuth, deleteAttendee);
+router.get('/attendee/:id', auth, getAttendeeDetails);
+router.delete('/record/:id', adminAuth, deleteAttendanceRecord);
 router.post('/mark', auth, markAttendance);
 router.get('/stats', auth, getStats);
 router.get('/history', auth, getHistory);

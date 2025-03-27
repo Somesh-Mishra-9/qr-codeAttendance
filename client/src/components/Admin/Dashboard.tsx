@@ -151,6 +151,10 @@ const Dashboard: React.FC = () => {
                     <h3>Scan QR Code</h3>
                     <p>Mark attendance using QR code</p>
                 </Link>
+                <Link to="/student-management" className="action-card">
+                    <h3>Student Management</h3>
+                    <p>Edit and manage student data</p>
+                </Link>
                 <Link to="/add-user" className="action-card">
                     <h3>Add Student</h3>
                     <p>Add a new student to the system</p>
