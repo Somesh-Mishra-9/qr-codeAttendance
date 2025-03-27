@@ -31,7 +31,8 @@ const Navigation: React.FC = () => {
         <nav className="main-navigation">
             <div className="nav-container">
                 <div className="nav-logo">
-                    <Link to="/dashboard">QR Attendance</Link>
+                    <img src="/logo.png" alt="ITWG Attendify" className="nav-logo-img" />
+                    <Link to="/dashboard">ITWG Attendify</Link>
                 </div>
 
                 <button 

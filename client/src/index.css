@@ -123,36 +123,57 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 0.5rem 1rem;
   max-width: 1200px;
   margin: 0 auto;
+  position: relative;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: max-content;
+}
+
+.nav-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .nav-logo a {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--primary-color);
+  white-space: nowrap;
 }
 
 .nav-menu {
   display: flex;
   align-items: center;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .nav-links {
   display: flex;
   list-style: none;
-  margin-right: 2rem;
+  margin-right: 1rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
 }
 
 .nav-links li {
-  margin-right: 1rem;
+  margin: 0;
 }
 
 .nav-links a {
   color: var(--text-color);
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--border-radius);
+  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .nav-links a:hover, .nav-links a.active {
@@ -163,18 +184,22 @@ input:focus, select:focus, textarea:focus {
 .user-menu {
   display: flex;
   align-items: center;
+  margin-left: 0.5rem;
+  min-width: max-content;
 }
 
 .username {
-  margin-right: 1rem;
+  margin-right: 0.75rem;
   color: var(--text-light);
+  font-size: 0.9rem;
 }
 
 .logout-button {
   background-color: transparent;
   color: var(--text-color);
   border: 1px solid var(--border-color);
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .logout-button:hover {
@@ -851,11 +876,11 @@ input:focus, select:focus, textarea:focus {
 /* Responsive Styles */
 @media screen and (max-width: 768px) {
   .content-container {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .nav-container {
-    padding: 1rem;
+    padding: 0.5rem 1rem;
   }
 
   .mobile-menu-toggle {
@@ -892,20 +917,20 @@ input:focus, select:focus, textarea:focus {
   }
 
   .nav-links li {
-    margin-right: 0;
-    margin-bottom: 0.5rem;
     width: 100%;
   }
 
   .nav-links a {
     display: block;
     padding: 0.75rem;
+    font-size: 1rem;
   }
 
   .user-menu {
     width: 100%;
     flex-direction: column;
     align-items: flex-start;
+    margin-left: 0;
   }
 
   .username {
@@ -916,6 +941,7 @@ input:focus, select:focus, textarea:focus {
   .logout-button {
     width: 100%;
     text-align: center;
+    padding: 0.5rem 1rem;
   }
 
   .qr-content {
