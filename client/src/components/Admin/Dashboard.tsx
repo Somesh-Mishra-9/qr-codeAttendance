@@ -62,7 +62,7 @@ const Dashboard: React.FC = () => {
                 <h1>Admin Dashboard</h1>
                 <div className="user-info">
                     <span>Welcome, {user?.username}</span>
-                    <button onClick={handleLogout}>Logout</button>
+                    <div style={{display: 'flex', justifyContent: 'flex-end'}}><button onClick={handleLogout}>Logout</button></div>
                 </div>
             </nav>
 
