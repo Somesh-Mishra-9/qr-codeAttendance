@@ -86,7 +86,7 @@ const App: React.FC = () => {
                         </Routes>
                     </main>
                     <footer className="app-footer">
-                        <p>&copy; {new Date().getFullYear()} QR Code Attendance System</p>
+                        <p>&copy; {new Date().getFullYear()} Crafted with ❤️ by MIT IT WG</p>
                     </footer>
                 </div>
             </BrowserRouter>
