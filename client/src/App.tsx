@@ -86,7 +86,9 @@ const App: React.FC = () => {
                         </Routes>
                     </main>
                     <footer className="app-footer">
-                        <p>&copy; {new Date().getFullYear()} Crafted with ❤️ by MIT ITWG</p>
+                        <p>
+                            &copy; {new Date().getFullYear()} Crafted with <span className="heart-icon">❤️</span> by MIT ITWG
+                        </p>
                     </footer>
                 </div>
             </BrowserRouter>

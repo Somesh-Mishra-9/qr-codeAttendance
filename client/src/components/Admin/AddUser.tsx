@@ -65,6 +65,60 @@ const AddUser: React.FC = () => {
         setSuccessMessage('');
 
         try {
+            // First, check if a student with this registration number already exists
+            const checkResponse = await fetch(`${apiUrl}/attendance/attendees`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (checkResponse.ok) {
+                const attendees = await checkResponse.json();
+                const existingStudent = attendees.find(
+                    (student: any) => student.universityRegNo === formData.universityRegNo
+                );
+                
+                if (existingStudent) {
+                    // If student exists, confirm the QR code update
+                    if (window.confirm(
+                        `A student with this registration number already exists. Do you want to update only their QR code and keep other details?`
+                    )) {
+                        // Update only the QR code
+                        const updateResponse = await fetch(`${apiUrl}/attendance/attendee/${existingStudent._id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({
+                                fullName: existingStudent.fullName,
+                                universityRegNo: existingStudent.universityRegNo,
+                                branch: existingStudent.branch,
+                                email: existingStudent.email || '',
+                                mobileNo: existingStudent.mobileNo || '',
+                                qrcodeNumber: formData.qrcodeNumber
+                            })
+                        });
+                        
+                        const updateData = await updateResponse.json();
+                        if (updateResponse.ok) {
+                            setSuccessMessage('QR code updated for existing student successfully!');
+                            setFormData(initialFormState);
+                        } else {
+                            setErrorMessage(updateData.message || 'Failed to update QR code');
+                        }
+                        setIsLoading(false);
+                        return;
+                    } else {
+                        setErrorMessage('Operation cancelled. No changes were made.');
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+            }
+            
+            // If no existing student or user decided not to update, create new student
             const response = await fetch(`${apiUrl}/attendance/attendee`, {
                 method: 'POST',
                 headers: {
@@ -74,16 +128,17 @@ const AddUser: React.FC = () => {
                 body: JSON.stringify(formData)
             });
 
+            const data = await response.json();
+            
             if (response.ok) {
-                setSuccessMessage('User added successfully!');
+                setSuccessMessage(data.message || 'Student added successfully!');
                 setFormData(initialFormState);
             } else {
-                const error = await response.json();
-                setErrorMessage(error.message || 'Failed to add user');
+                setErrorMessage(data.message || 'Failed to add student');
             }
         } catch (error) {
             setErrorMessage('Error connecting to server');
-            console.error('Error adding user:', error);
+            console.error('Error adding student:', error);
         } finally {
             setIsLoading(false);
         }

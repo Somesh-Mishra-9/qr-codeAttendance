@@ -191,16 +191,28 @@ export const importCSV = async (req, res) => {
                 results.push(attendee);
             })
             .on('end', async () => {
-                // Use updateOne with upsert to avoid duplicates
-                const operations = results.map(attendee => ({
-                    updateOne: {
-                        filter: { qrcodeNumber: attendee.qrcodeNumber },
-                        update: { $set: attendee },
-                        upsert: true
+                // Process each attendee entry
+                for (const attendee of results) {
+                    if (!attendee.universityRegNo) {
+                        continue; // Skip entries without registration number
                     }
-                }));
-
-                await Attendee.bulkWrite(operations);
+                    
+                    // Check if attendee with this registration number already exists
+                    const existingAttendee = await Attendee.findOne({ 
+                        universityRegNo: attendee.universityRegNo 
+                    });
+                    
+                    if (existingAttendee) {
+                        // Only update the QR code, keep rest of the details as is
+                        await Attendee.updateOne(
+                            { universityRegNo: attendee.universityRegNo },
+                            { $set: { qrcodeNumber: attendee.qrcodeNumber } }
+                        );
+                    } else {
+                        // Create new attendee with all details
+                        await Attendee.create(attendee);
+                    }
+                }
                 
                 // Clean up the uploaded file
                 fs.unlinkSync(req.file.path);
@@ -249,19 +261,33 @@ export const createAttendee = async (req, res) => {
             });
         }
 
-        // Check if attendee with same QR code or reg number already exists
-        const existingAttendee = await Attendee.findOne({
-            $or: [
-                { qrcodeNumber },
-                { universityRegNo }
-            ]
-        });
+        // Check if attendee with same registration number already exists
+        const existingAttendee = await Attendee.findOne({ universityRegNo });
 
         if (existingAttendee) {
+            // Only update the QR code, keeping other details the same
+            const updatedAttendee = await Attendee.findOneAndUpdate(
+                { universityRegNo },
+                { $set: { qrcodeNumber } },
+                { new: true }
+            );
+            
+            return res.status(200).json({ 
+                message: 'QR code updated for existing registration number',
+                attendee: {
+                    id: updatedAttendee._id,
+                    fullName: updatedAttendee.fullName,
+                    universityRegNo: updatedAttendee.universityRegNo,
+                    qrcodeNumber: updatedAttendee.qrcodeNumber
+                }
+            });
+        }
+
+        // Check if a different attendee has the same QR code
+        const qrCodeExists = await Attendee.findOne({ qrcodeNumber });
+        if (qrCodeExists) {
             return res.status(409).json({ 
-                message: existingAttendee.qrcodeNumber === qrcodeNumber 
-                    ? 'An attendee with this QR code already exists' 
-                    : 'An attendee with this registration number already exists'
+                message: 'An attendee with this QR code already exists'
             });
         }
 
@@ -305,20 +331,36 @@ export const updateAttendee = async (req, res) => {
             });
         }
 
-        // Check if another attendee already has this registration number or QR code
-        const existingAttendee = await Attendee.findOne({
+        // Get the current attendee
+        const currentAttendee = await Attendee.findById(id);
+        if (!currentAttendee) {
+            return res.status(404).json({ message: 'Attendee not found' });
+        }
+
+        // If trying to change to a different university registration number
+        if (currentAttendee.universityRegNo !== universityRegNo) {
+            // Check if the new registration number already exists
+            const existingRegNo = await Attendee.findOne({ 
+                universityRegNo, 
+                _id: { $ne: id } 
+            });
+
+            if (existingRegNo) {
+                return res.status(409).json({ 
+                    message: 'Another attendee with this registration number already exists'
+                });
+            }
+        }
+
+        // Check if another attendee already has this QR code
+        const existingQRCode = await Attendee.findOne({
             _id: { $ne: id },
-            $or: [
-                { qrcodeNumber },
-                { universityRegNo }
-            ]
+            qrcodeNumber
         });
 
-        if (existingAttendee) {
+        if (existingQRCode) {
             return res.status(409).json({ 
-                message: existingAttendee.qrcodeNumber === qrcodeNumber 
-                    ? 'Another attendee with this QR code already exists' 
-                    : 'Another attendee with this registration number already exists'
+                message: 'Another attendee with this QR code already exists'
             });
         }
 
@@ -335,10 +377,6 @@ export const updateAttendee = async (req, res) => {
             },
             { new: true }
         );
-
-        if (!updatedAttendee) {
-            return res.status(404).json({ message: 'Attendee not found' });
-        }
 
         res.json({ 
             message: 'Attendee updated successfully',
