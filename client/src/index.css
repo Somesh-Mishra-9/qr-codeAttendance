@@ -25,8 +25,8 @@
 }
 
 body {
-  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -35,7 +35,12 @@ body {
   line-height: 1.6;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin-bottom: 1rem;
   font-weight: 600;
   line-height: 1.2;
@@ -71,7 +76,9 @@ button:disabled {
   cursor: not-allowed;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -81,7 +88,9 @@ input, select, textarea {
   transition: var(--transition);
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
@@ -122,10 +131,21 @@ input:focus, select:focus, textarea:focus {
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
-    radial-gradient(circle at 10% 20%, rgba(74, 108, 247, 0.05) 0%, transparent 30%),
-    radial-gradient(circle at 90% 30%, rgba(255, 64, 129, 0.05) 0%, transparent 30%),
-    radial-gradient(circle at 50% 80%, rgba(118, 74, 247, 0.05) 0%, transparent 40%);
+  background: radial-gradient(
+      circle at 10% 20%,
+      rgba(74, 108, 247, 0.05) 0%,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 90% 30%,
+      rgba(255, 64, 129, 0.05) 0%,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 50% 80%,
+      rgba(118, 74, 247, 0.05) 0%,
+      transparent 40%
+    );
   z-index: -1;
   animation: shiftBackground 15s ease-in-out infinite alternate;
 }
@@ -142,12 +162,14 @@ input:focus, select:focus, textarea:focus {
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, 
-    transparent, 
-    rgba(74, 108, 247, 0.3), 
-    rgba(255, 64, 129, 0.3), 
-    rgba(118, 74, 247, 0.3), 
-    transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(74, 108, 247, 0.3),
+    rgba(255, 64, 129, 0.3),
+    rgba(118, 74, 247, 0.3),
+    transparent
+  );
   animation: shimmerLine 8s linear infinite;
 }
 
@@ -166,7 +188,8 @@ input:focus, select:focus, textarea:focus {
   }
   50% {
     transform: scale(1.2);
-    text-shadow: 0 0 10px rgba(255, 64, 129, 0.7), 0 0 20px rgba(255, 64, 129, 0.4);
+    text-shadow: 0 0 10px rgba(255, 64, 129, 0.7),
+      0 0 20px rgba(255, 64, 129, 0.4);
   }
   100% {
     transform: scale(1);
@@ -270,7 +293,8 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.9rem;
 }
 
-.nav-links a:hover, .nav-links a.active {
+.nav-links a:hover,
+.nav-links a.active {
   background-color: var(--background-color);
   color: var(--primary-color);
 }
@@ -405,7 +429,8 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 
-.student-details, .attendance-time {
+.student-details,
+.attendance-time {
   font-size: 0.9rem;
   color: var(--text-light);
 }
@@ -484,7 +509,8 @@ input:focus, select:focus, textarea:focus {
   transition: var(--transition);
 }
 
-.attendee-item:hover, .attendee-item.selected {
+.attendee-item:hover,
+.attendee-item.selected {
   background-color: var(--background-color);
 }
 
@@ -535,7 +561,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Scanner */
-.scanner-selector-container, .webcam-scanner-container, .mobile-scanner-container {
+.scanner-selector-container,
+.webcam-scanner-container,
+.mobile-scanner-container {
   max-width: 700px;
   margin: 0 auto;
   text-align: center;
@@ -569,7 +597,8 @@ input:focus, select:focus, textarea:focus {
   gap: 2rem;
 }
 
-.scanner-wrapper, .scanner-view {
+.scanner-wrapper,
+.scanner-view {
   width: 100%;
   max-width: 500px;
   height: 375px;
@@ -688,7 +717,8 @@ input:focus, select:focus, textarea:focus {
   box-shadow: var(--shadow);
 }
 
-.attendance-table th, .attendance-table td {
+.attendance-table th,
+.attendance-table td {
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -821,7 +851,8 @@ input:focus, select:focus, textarea:focus {
   border-collapse: collapse;
 }
 
-.preview-table th, .preview-table td {
+.preview-table th,
+.preview-table td {
   padding: 0.75rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -880,6 +911,82 @@ input:focus, select:focus, textarea:focus {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* New Loading Spinner Styles */
+.modern-loading-container {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1b2735, #090a0f);
+  font-family: "Georgia", serif;
+  color: #fff;
+  flex-direction: column;
+  text-align: center;
+  min-height: 400px;
+}
+
+.modern-spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid rgba(255, 255, 255, 0.2);
+  border-top: 6px solid var(--primary-color);
+  border-radius: 50%;
+  animation: modernSpin 1s linear infinite;
+  margin-bottom: 30px;
+}
+
+.quote-container {
+  font-size: 1.2rem;
+  min-height: 3em;
+}
+
+.typewriter-text {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  border-right: 2px solid var(--primary-color);
+  animation: typing 2s steps(40, end), blink 0.75s step-end infinite;
+}
+
+.loading-tagline {
+  margin-top: 20px;
+  font-style: italic;
+  color: var(--primary-color);
+  animation: pulse 2s infinite;
+}
+
+@keyframes modernSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink {
+  50% {
+    border-color: transparent;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
@@ -1051,7 +1158,8 @@ input:focus, select:focus, textarea:focus {
     flex-direction: column;
   }
 
-  .dashboard-stats, .dashboard-actions {
+  .dashboard-stats,
+  .dashboard-actions {
     grid-template-columns: 1fr;
   }
 }
